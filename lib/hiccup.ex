@@ -7,59 +7,84 @@ defmodule Hiccup do
   Hiccup like html render(honestly maybe like hiccup)
 
   """
-  def hello do
-    :world
-  end
 
-  # "<div id="mydiv"><p>hello</p>world</div>"
-  # [:div, %{:id "mydiv"}, [:p, "hello"], "world"]
+  # Render html
 
-  # "<div><p>hello</p>world</div>"
-  # [:div, [:p, "hello"], "world"]
-
-  # <html><head><title>Title</title></head><body><h1>Heading</h1><p>Paragraph.</p></body></html>
-  # [:html, [[:head, [:title, "Title"]],[:body, [[:h1, "Heading"],[:p, "Paragraph."]]]]]
-
+  @spec render(list :: Tuple.t()) :: String.t() | {:error, :render_error}
   def render(list) do
-    object(list)
+    try do
+      object(list)
+    catch
+      :error, _ -> {:error, :render_error}
+    end
   end
 
-  def object([name, properties, childs, data]) do
+  # Working with object
+
+  defp object({name}) when is_atom(name) do
+    "<#{name}></#{name}>"
+  end
+
+  defp object({name, properties, childs, data}) do
     props = props(properties)
-    objects = object(childs)
+    objects = objects(childs)
     "<#{name}#{props}>#{objects}#{data}</#{name}>"
   end
 
-  def object([name, properties, childs]) when is_list(childs) do
-    str = props(properties)
-    objects = object(childs)
-    "<#{name}#{str}>#{objects}</#{name}>"
-  end
-
-  def object([name, childs, data]) when is_list(childs) do
-    objects = object(childs)
+  defp object({name, childs, data}) when is_list(childs) do
+    objects = objects(childs)
     "<#{name}>#{objects}#{data}</#{name}>"
   end
 
-  def object([name, properties, data]) when is_bitstring(data) do
+  defp object({name, child, data}) when is_tuple(child) do
+    object = object(child)
+    "<#{name}>#{object}#{data}</#{name}>"
+  end
+
+  defp object({name, properties, data}) when is_bitstring(data) do
     str = props(properties)
     "<#{name}#{str}>#{data}</#{name}>"
   end
 
-  def object([name, childs]) when is_list(childs) do
-    objects = object(childs)
-    "<#{name}>#{objects}</#{name}>"
+  defp object({name, properties, childs}) do
+    str = props(properties)
+    objects = objects(childs)
+    "<#{name}#{str}>#{objects}</#{name}>"
   end
 
-  def object([name, data]) when is_bitstring(data) do
+  defp object({name, data}) when is_bitstring(data) do
     "<#{name}>#{data}</#{name}>"
   end
 
-  def object([name]) do
-    "<#{name}></#{name}>"
+  defp object({name, properties}) when is_map(properties) do
+    str = props(properties)
+    "<#{name}#{str}></#{name}>"
   end
 
-  def props(props) do
+  defp object({name, child}) when is_tuple(child) do
+    object = object(child)
+    "<#{name}>#{object}</#{name}>"
+  end
+
+  defp object({name, childs}) do
+    childs = objects(childs)
+    "<#{name}>#{childs}</#{name}>"
+  end
+
+  # Working with list of objects
+
+  defp objects({name, child}) when is_bitstring(child), do: object({name, child})
+
+  defp objects({name, child}) when is_tuple(child) do
+    object = object(child)
+    "<#{name}>#{object}</#{name}>"
+  end
+
+  defp objects(arg) when is_list(arg), do: Enum.map(arg, &object/1)
+
+  # Working with properties
+
+  defp props(props) do
     Enum.reduce(props, "", fn {k, v}, acc ->
       acc <> " #{k}=\"#{v}\""
     end)
